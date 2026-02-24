@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             targetNamespace="http://flowable.org/bpmn">
+
+    <process id="contractReviewProcess" name="合同审核流程" isExecutable="true">
+
+        <startEvent id="start" name="流程开始"/>
+        
+        <endEvent id="successEnd" name="流程结束(归档)"/>
+        
+        <endEvent id="rejectEnd" name="已驳回"/>
+
+        <userTask id="upload" name="使用部门上传合同" flowable:assignee="${requester}"/>
+
+        <userTask id="gmSign1" name="综合管理部会签" flowable:assignee="${gmUser}"/>
+
+        <userTask id="legalReview" name="行政办处理（法务审核）" flowable:assignee="${legalUser}"/>
+
+        <userTask id="userModify" name="使用部门修改会签" flowable:assignee="${requester}">
+            <documentation>根据法务意见修改合同</documentation>
+        </userTask>
+
+        <userTask id="adminFinal" name="行政办最终确认" flowable:assignee="${legalUser}"/>
+
+        <exclusiveGateway id="gw_after_gm1" name="综管部会签网关"/>
+
+        <sequenceFlow id="flow_start_upload" sourceRef="start" targetRef="upload"/>
+        
+        <sequenceFlow id="flow_upload_gm1" sourceRef="upload" targetRef="gmSign1"/>
+        
+        <sequenceFlow id="flow_gm1_gw" sourceRef="gmSign1" targetRef="gw_after_gm1"/>
+
+        <sequenceFlow id="flow_gm1_pass" sourceRef="gw_after_gm1" targetRef="legalReview">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${gmApprovedFirst}]]></conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flow_gm1_reject" sourceRef="gw_after_gm1" targetRef="rejectEnd">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${!gmApprovedFirst}]]></conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flow_legal_user" sourceRef="legalReview" targetRef="userModify"/>
+
+        <sequenceFlow id="flow_user_admin" sourceRef="userModify" targetRef="adminFinal"/>
+
+        <sequenceFlow id="flow_admin_success" sourceRef="adminFinal" targetRef="successEnd"/>
+
+    </process>
+
+    <!-- BPMN Diagram for visualization -->
+    <bpmndi:BPMNDiagram id="BPMNDiagram_contractReviewProcess">
+        <bpmndi:BPMNPlane bpmnElement="contractReviewProcess" id="BPMNPlane_contractReviewProcess">
+            
+            <!-- Start Event -->
+            <bpmndi:BPMNShape id="BPMNShape_start" bpmnElement="start">
+                <dc:Bounds x="50" y="200" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="35" y="240" width="66" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- End Events -->
+            <bpmndi:BPMNShape id="BPMNShape_successEnd" bpmnElement="successEnd">
+                <dc:Bounds x="950" y="200" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="920" y="240" width="96" height="40"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <bpmndi:BPMNShape id="BPMNShape_rejectEnd" bpmnElement="rejectEnd">
+                <dc:Bounds x="400" y="400" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="370" y="440" width="96" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- User Tasks -->
+            <bpmndi:BPMNShape id="BPMNShape_upload" bpmnElement="upload">
+                <dc:Bounds x="150" y="180" width="100" height="80"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="135" y="265" width="130" height="40"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <bpmndi:BPMNShape id="BPMNShape_gmSign1" bpmnElement="gmSign1">
+                <dc:Bounds x="300" y="180" width="100" height="80"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="285" y="265" width="130" height="40"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <bpmndi:BPMNShape id="BPMNShape_legalReview" bpmnElement="legalReview">
+                <dc:Bounds x="550" y="180" width="100" height="80"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="520" y="265" width="160" height="40"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <bpmndi:BPMNShape id="BPMNShape_userModify" bpmnElement="userModify">
+                <dc:Bounds x="700" y="180" width="100" height="80"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="685" y="265" width="130" height="40"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <bpmndi:BPMNShape id="BPMNShape_adminFinal" bpmnElement="adminFinal">
+                <dc:Bounds x="850" y="180" width="100" height="80"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="835" y="265" width="130" height="40"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- Exclusive Gateway -->
+            <bpmndi:BPMNShape id="BPMNShape_gw_after_gm1" bpmnElement="gw_after_gm1">
+                <dc:Bounds x="425" y="195" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="410" y="250" width="80" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- Sequence Flows -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_start_upload" bpmnElement="flow_start_upload">
+                <di:waypoint x="86" y="218"/>
+                <di:waypoint x="150" y="218"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_upload_gm1" bpmnElement="flow_upload_gm1">
+                <di:waypoint x="250" y="218"/>
+                <di:waypoint x="300" y="218"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_gm1_gw" bpmnElement="flow_gm1_gw">
+                <di:waypoint x="400" y="218"/>
+                <di:waypoint x="425" y="220"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_gm1_pass" bpmnElement="flow_gm1_pass">
+                <di:waypoint x="450" y="220"/>
+                <di:waypoint x="550" y="220"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_gm1_reject" bpmnElement="flow_gm1_reject">
+                <di:waypoint x="425" y="245"/>
+                <di:waypoint x="425" y="400"/>
+                <di:waypoint x="418" y="400"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_legal_user" bpmnElement="flow_legal_user">
+                <di:waypoint x="650" y="220"/>
+                <di:waypoint x="700" y="220"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_user_admin" bpmnElement="flow_user_admin">
+                <di:waypoint x="800" y="220"/>
+                <di:waypoint x="850" y="220"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_admin_success" bpmnElement="flow_admin_success">
+                <di:waypoint x="950" y="218"/>
+                <di:waypoint x="968" y="218"/>
+            </bpmndi:BPMNEdge>
+            
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+</definitions>

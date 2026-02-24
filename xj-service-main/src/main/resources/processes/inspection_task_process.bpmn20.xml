@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+             targetNamespace="http://flowable.org/processdef"
+             id="inspectionTaskProcessDefinitions"
+             name="日常监督检查流程定义">
+
+
+    <process id="inspectionTaskProcess" name="日常监督检查流程" isExecutable="true">
+
+        <!-- 1. 主流程起始节点 -->
+        <startEvent id="startEvent" name="发起检查任务"/>
+
+        <!-- 2. 多实例子流程（每个检查员一个独立子流程，支持单任务审核） -->
+        <subProcess id="inspectionSubProcess" name="检查员任务子流程">
+            <multiInstanceLoopCharacteristics isSequential="false"
+                                              flowable:collection="${inspectorIdsList}"
+                                              flowable:elementVariable="inspectorId">
+                <completionCondition>${nrOfCompletedInstances == nrOfInstances}</completionCondition>
+            </multiInstanceLoopCharacteristics>
+
+            <!-- 子流程内部：单个检查员的任务链 -->
+            <startEvent id="subStartEvent" name="子流程起始"/>
+
+            <!-- 2.1 检查员执行任务 -->
+            <userTask id="inspectionTask" name="检查员执行检查" flowable:assignee="${inspectorId}">
+                <extensionElements>
+                    <flowable:taskListener event="create" delegateExpression="${inspectionTaskCreateListener}"/>
+                    <flowable:taskListener event="complete"  delegateExpression="${inspectionTaskCompleteListener}"/>
+                </extensionElements>
+            </userTask>
+
+            <!-- 2.2 管理员审核单个检查员结果 -->
+            <userTask id="singleAuditTask" name="审核${inspectorId}的检查结果" flowable:assignee="${initiatorId}">
+                <extensionElements>
+                    <flowable:formProperty id="auditResult" name="审核结果" type="enum" required="true">
+                        <flowable:value id="PASS" name="通过"/>
+                        <flowable:value id="REJECT" name="驳回"/>
+                    </flowable:formProperty>
+                    <flowable:formProperty id="rejectReason" name="驳回原因" type="string"/>
+                </extensionElements>
+            </userTask>
+
+            <!-- 2.3 审核网关 - 移除默认流属性 -->
+            <exclusiveGateway id="singleAuditGateway" name="单任务审核网关"/>
+
+            <!-- 2.4 重做任务（仅当前检查员） -->
+            <userTask id="singleRedoTask" name="${inspectorId}重新检查" flowable:assignee="${inspectorId}">
+                <extensionElements>
+                    <flowable:taskListener event="create" delegateExpression="${redoTaskCreateListener}"/>
+                </extensionElements>
+            </userTask>
+
+            <!-- 2.5 子流程结束 -->
+            <endEvent id="subEndEvent" name="子流程结束"/>
+
+            <!-- 子流程内部序列流 -->
+            <sequenceFlow id="subFlow1" sourceRef="subStartEvent" targetRef="inspectionTask"/>
+            <sequenceFlow id="subFlow2" sourceRef="inspectionTask" targetRef="singleAuditTask"/>
+            <sequenceFlow id="subFlow3" sourceRef="singleAuditTask" targetRef="singleAuditGateway"/>
+            <!-- 审核通过 → 子流程结束 -->
+            <sequenceFlow id="flowSinglePass" sourceRef="singleAuditGateway" targetRef="subEndEvent">
+                <conditionExpression xsi:type="tFormalExpression">${auditResult == 'PASS'}</conditionExpression>
+            </sequenceFlow>
+            <!-- 审核驳回 → 重做任务 → 回到审核 -->
+            <sequenceFlow id="flowSingleReject" sourceRef="singleAuditGateway" targetRef="singleRedoTask">
+                <conditionExpression xsi:type="tFormalExpression">${auditResult == 'REJECT'}</conditionExpression>
+            </sequenceFlow>
+            <sequenceFlow id="flowRedoToAudit" sourceRef="singleRedoTask" targetRef="singleAuditTask"/>
+        </subProcess>
+
+        <!-- 3. 聚合网关：等待所有子流程完成 -->
+        <parallelGateway id="mergeGateway" name="聚合网关"/>
+
+        <!-- 4. 流程结束 -->
+        <endEvent id="endEvent" name="检查任务完成"/>
+
+        <!-- 主流程序列流 -->
+        <sequenceFlow id="mainFlow1" sourceRef="startEvent" targetRef="inspectionSubProcess"/>
+        <sequenceFlow id="mainFlow2" sourceRef="inspectionSubProcess" targetRef="mergeGateway"/>
+        <sequenceFlow id="mainFlow3" sourceRef="mergeGateway" targetRef="endEvent"/>
+    </process>
+    <!-- ################### BPMNDI 图形布局配置 ################### -->
+    <bpmndi:BPMNDiagram id="BPMNDiagram_inspectionTaskProcess">
+        <bpmndi:BPMNPlane id="BPMNPlane_inspectionTaskProcess" bpmnElement="inspectionTaskProcess">
+
+            <!-- ########## 主流程节点图形 ########## -->
+            <!-- 主开始事件 -->
+            <bpmndi:BPMNShape id="BPMNShape_startEvent" bpmnElement="startEvent">
+                <dc:Bounds x="100" y="150" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <!-- 多实例子流程 -->
+            <bpmndi:BPMNShape id="BPMNShape_inspectionSubProcess" bpmnElement="inspectionSubProcess">
+                <dc:Bounds x="200" y="80" width="400" height="280"/>
+            </bpmndi:BPMNShape>
+
+            <!-- 聚合网关 -->
+            <bpmndi:BPMNShape id="BPMNShape_mergeGateway" bpmnElement="mergeGateway">
+                <dc:Bounds x="650" y="150" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+
+            <!-- 主结束事件 -->
+            <bpmndi:BPMNShape id="BPMNShape_endEvent" bpmnElement="endEvent">
+                <dc:Bounds x="750" y="150" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <!-- ########## 子流程内部节点图形（嵌套在子流程内） ########## -->
+            <!-- 子流程开始事件 -->
+            <bpmndi:BPMNShape id="BPMNShape_subStartEvent" bpmnElement="subStartEvent">
+                <dc:Bounds x="250" y="120" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <!-- 检查员执行任务 -->
+            <bpmndi:BPMNShape id="BPMNShape_inspectionTask" bpmnElement="inspectionTask">
+                <dc:Bounds x="250" y="200" width="100" height="60"/>
+            </bpmndi:BPMNShape>
+
+            <!-- 单任务审核 -->
+            <bpmndi:BPMNShape id="BPMNShape_singleAuditTask" bpmnElement="singleAuditTask">
+                <dc:Bounds x="250" y="300" width="100" height="60"/>
+            </bpmndi:BPMNShape>
+
+            <!-- 审核排他网关 -->
+            <bpmndi:BPMNShape id="BPMNShape_singleAuditGateway" bpmnElement="singleAuditGateway">
+                <dc:Bounds x="400" y="320" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+
+            <!-- 重做任务 -->
+            <bpmndi:BPMNShape id="BPMNShape_singleRedoTask" bpmnElement="singleRedoTask">
+                <dc:Bounds x="400" y="200" width="100" height="60"/>
+            </bpmndi:BPMNShape>
+
+            <!-- 子流程结束事件 -->
+            <bpmndi:BPMNShape id="BPMNShape_subEndEvent" bpmnElement="subEndEvent">
+                <dc:Bounds x="400" y="400" width="36" height="36"/>
+            </bpmndi:BPMNShape>
+
+            <!-- ########## 主流程连接线 ########## -->
+            <!-- 主开始 → 子流程 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_mainFlow1" bpmnElement="mainFlow1">
+                <di:waypoint x="136" y="168"/>
+                <di:waypoint x="200" y="168"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- 子流程 → 聚合网关 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_mainFlow2" bpmnElement="mainFlow2">
+                <di:waypoint x="600" y="168"/>
+                <di:waypoint x="650" y="175"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- 聚合网关 → 主结束 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_mainFlow3" bpmnElement="mainFlow3">
+                <di:waypoint x="700" y="175"/>
+                <di:waypoint x="750" y="168"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- ########## 子流程内部连接线 ########## -->
+            <!-- 子开始 → 检查员执行任务 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_subFlow1" bpmnElement="subFlow1">
+                <di:waypoint x="268" y="156"/>
+                <di:waypoint x="268" y="200"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- 检查员执行任务 → 审核任务 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_subFlow2" bpmnElement="subFlow2">
+                <di:waypoint x="268" y="260"/>
+                <di:waypoint x="268" y="300"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- 审核任务 → 审核网关 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_subFlow3" bpmnElement="subFlow3">
+                <di:waypoint x="350" y="330"/>
+                <di:waypoint x="400" y="345"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- 审核网关 → 子结束（通过） -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flowSinglePass" bpmnElement="flowSinglePass">
+                <di:waypoint x="425" y="370"/>
+                <di:waypoint x="418" y="400"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- 审核网关 → 重做任务（驳回） -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flowSingleReject" bpmnElement="flowSingleReject">
+                <di:waypoint x="425" y="320"/>
+                <di:waypoint x="450" y="260"/>
+            </bpmndi:BPMNEdge>
+
+            <!-- 重做任务 → 审核任务 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flowRedoToAudit" bpmnElement="flowRedoToAudit">
+                <di:waypoint x="400" y="230"/>
+                <di:waypoint x="350" y="230"/>
+                <di:waypoint x="350" y="330"/>
+            </bpmndi:BPMNEdge>
+
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+</definitions>

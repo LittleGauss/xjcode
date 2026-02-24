@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.xj_service.oa.mapper.SysOperLogMapper">
+    <select id="countUserLogins" resultType="java.lang.Integer">
+        SELECT
+        COUNT(*)
+        FROM
+        sys_oper_log  WHERE
+        title = '用户登录'
+        AND oper_url = '/xj/user/login';
+    </select>
+</mapper>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 注意：namespace要和Mapper接口路径一致 -->
+<mapper namespace="org.xj_service.oa.mapper.ConsumableScrapMapper">
+
+    <!-- 通用查询列 -->
+    <sql id="Base_Column_List">
+        s.id, scrap_id, apply_user_id, apply_user_name, apply_dept,
+        assignee_id, assignee_name, apply_time, reason, process_method,
+        s.status, review_time, review_remark,
+        next_approver_id, next_approver_name, approve_time, approve_remark,
+        s.created_at, s.updated_at  
+    </sql>
+
+    <!-- 获取我的报废申请列表 -->
+    <select id="getMyScrapList" resultType="org.xj_service.oa.entity.ConsumableScrap">
+        SELECT
+        <include refid="Base_Column_List" />,
+        u.nickname AS apply_user_nickname,
+        <!-- 新增：关联查询审核人的昵称 -->
+        assignee_user.nickname AS assignee_nickname
+        FROM oa_consumable_scrap s
+        INNER JOIN sys_user u ON s.apply_user_id = u.id
+        <!-- 新增：左连接审核人用户表 -->
+        LEFT JOIN sys_user assignee_user ON s.assignee_id = assignee_user.id
+        WHERE s.apply_user_id = #{applyUserId}
+        ORDER BY s.apply_time DESC
+    </select>
+
+    <!-- 获取待我审批的报废申请列表 -->
+    <select id="getToApproveScrapList" resultType="org.xj_service.oa.entity.ConsumableScrap">
+        SELECT
+        <include refid="Base_Column_List" />,
+        u.nickname AS apply_user_nickname  <!-- 关联用户表，查询 nickname，别名对应通用列 -->
+        FROM oa_consumable_scrap s
+        <!-- 内连接 sys_user 表（别名 u），关联条件：报废表申请人ID = 用户表ID -->
+        INNER JOIN sys_user u ON s.apply_user_id = u.id
+        WHERE (
+        (s.assignee_id = #{assigneeId} AND s.status = 'REVIEW')
+        OR
+        (s.next_approver_id = #{assigneeId} AND s.status = 'REVIEWED')
+        )
+        <if test="status != null and status != ''">
+            AND s.status = #{status}
+        </if>
+        ORDER BY s.apply_time DESC
+    </select>
+
+</mapper>

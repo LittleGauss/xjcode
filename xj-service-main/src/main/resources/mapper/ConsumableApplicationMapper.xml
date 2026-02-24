@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.xj_service.oa.mapper.ConsumableApplicationMapper">
+    <!-- 根据申请人ID查询 -->
+    <select id="selectByApplicantId" resultType="org.xj_service.oa.entity.ConsumableApplication">
+        SELECT * FROM oa_consumable_application
+        WHERE applicant_id = #{applicantId}
+        ORDER BY apply_time DESC
+    </select>
+
+    <!-- 根据流程实例ID查询 -->
+    <select id="selectByProcessInstanceId" resultType="org.xj_service.oa.entity.ConsumableApplication">
+        SELECT * FROM oa_consumable_application
+        WHERE process_instance_id = #{processInstanceId}
+    </select>
+
+    <!-- 根据状态和耗材类型查询 -->
+    <select id="selectByStatusAndType" resultType="org.xj_service.oa.entity.ConsumableApplication">
+        SELECT * FROM oa_consumable_application
+        WHERE current_status = #{finalStatus}
+          AND consumable_type = #{consumableType}
+        ORDER BY apply_time DESC
+    </select>
+
+    <!-- 查询所有领用申请 -->
+    <select id="selectAllApplications" resultType="org.xj_service.oa.entity.ConsumableApplication">
+        SELECT * FROM oa_consumable_application
+        ORDER BY apply_time DESC
+    </select>
+
+    <!-- 根据状态筛选申请 -->
+    <select id="selectByStatus" resultType="org.xj_service.oa.entity.ConsumableApplication">
+        SELECT * FROM oa_consumable_application
+        WHERE current_status = #{status}
+        ORDER BY apply_time DESC
+    </select>
+
+    <!-- 获取审批历史（根据审批人ID） -->
+    <!-- 获取审批历史（根据审批人ID） -->
+    <select id="selectApprovalHistory" resultType="org.xj_service.oa.entity.ConsumableApplication">
+        SELECT * FROM oa_consumable_application
+        WHERE assignee_id = #{approverId}
+        ORDER BY apply_time DESC
+    </select>
+
+</mapper>

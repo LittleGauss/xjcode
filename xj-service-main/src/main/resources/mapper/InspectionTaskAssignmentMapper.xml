@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.xj_service.oa.mapper.InspectionTaskAssignmentMapper">
+    <select id="selectByTaskId" resultType="org.xj_service.oa.entity.InspectionTaskAssignment">
+        SELECT * FROM oa_inspection_task_assignment WHERE inspection_task_id = #{taskId}
+    </select>
+
+    <select id="selectByInspectorIdAndStatus" resultType="org.xj_service.oa.entity.InspectionTaskAssignment">
+        SELECT * FROM oa_inspection_task_assignment
+        WHERE inspector_id = #{inspectorId} AND task_status = #{status}
+    </select>
+
+    <select id="getAssignmentByTaskIdAndUseID" resultType="org.xj_service.oa.entity.InspectionTaskAssignment">
+        SELECT * FROM oa_inspection_task_assignment
+        WHERE inspection_task_id = #{inspectionTaskId} AND inspector_id = #{inspectorId}
+    </select>
+
+    <select id="selectByFlowTaskId" resultType="org.xj_service.oa.entity.InspectionTaskAssignment">
+        SELECT * FROM oa_inspection_task_assignment WHERE flow_task_id = #{flowTaskId} AND inspector_id = #{inspectorId}
+    </select>
+</mapper>

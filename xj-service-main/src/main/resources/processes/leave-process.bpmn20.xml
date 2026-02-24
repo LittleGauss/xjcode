@@ -1,0 +1,393 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             targetNamespace="http://flowable.org/bpmn">
+
+    <process id="leaveAndCancelProcess" name="请假及销假一体化流程" isExecutable="true">
+        
+        <startEvent id="start" name="开始"/>
+        <userTask id="submit" name="提交请假申请" flowable:assignee="${starter}"/>
+        
+        <exclusiveGateway id="gw_role_check" name="申请人身份判断"/>
+
+        <userTask id="deptManagerAudit" name="部门主管审批" flowable:assignee="${deptManager}"/>
+        <exclusiveGateway id="gw_dept_audit" name="主管审批网关"/>
+        
+        <userTask id="adminOfficeAudit" name="行政办审批" flowable:assignee="${adminUser}"/>
+        <exclusiveGateway id="gw_admin_audit" name="行政审批网关"/>
+        
+        <exclusiveGateway id="gw_check_half_day" name="是否大于半天?"/>
+
+        <userTask id="viceLeaderAudit" name="分管领导审批" flowable:assignee="${viceLeader}"/>
+        <exclusiveGateway id="gw_vice_audit" name="分管审批网关"/>
+
+        <exclusiveGateway id="gw_check_three_days" name="是否大于3天?"/>
+
+        <userTask id="mainLeaderAudit" name="主要领导审批" flowable:assignee="${mainLeader}"/>
+        <exclusiveGateway id="gw_main_audit" name="主领导审批网关"/>
+
+
+        <userTask id="reportBackApply" name="发起销假/销假申请" flowable:assignee="${starter}">
+            <documentation>请假结束后，申请人发起销假</documentation>
+        </userTask>
+        
+        <userTask id="reportBackManager" name="销假-主管确认" flowable:assignee="${deptManager}"/>
+        
+        <userTask id="reportBackAdmin" name="销假-行政办归档" flowable:assignee="${adminUser}"/>
+        
+        <endEvent id="end" name="流程结束(已销假)"/>
+        <endEvent id="rejectEnd" name="已驳回"/>
+
+        <sequenceFlow id="flow_start_submit" sourceRef="start" targetRef="submit"/>
+        <sequenceFlow id="flow_submit_gw_role" sourceRef="submit" targetRef="gw_role_check"/>
+
+        <sequenceFlow id="flow_gw_role_main" sourceRef="gw_role_check" targetRef="mainLeaderAudit">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${isLeader}]]></conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flow_gw_role_dept" sourceRef="gw_role_check" targetRef="deptManagerAudit">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${!isLeader}]]></conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flow_dept_gw_dept" sourceRef="deptManagerAudit" targetRef="gw_dept_audit"/>
+        <sequenceFlow id="flow_gw_dept_reject" sourceRef="gw_dept_audit" targetRef="rejectEnd">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${!approved}]]></conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flow_gw_dept_admin" sourceRef="gw_dept_audit" targetRef="adminOfficeAudit">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${approved}]]></conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flow_admin_gw_admin" sourceRef="adminOfficeAudit" targetRef="gw_admin_audit"/>
+        <sequenceFlow id="flow_gw_admin_reject" sourceRef="gw_admin_audit" targetRef="rejectEnd">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${!approved}]]></conditionExpression>
+        </sequenceFlow>
+        
+        <sequenceFlow id="flow_gw_admin_half_day" sourceRef="gw_admin_audit" targetRef="gw_check_half_day">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${approved}]]></conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flow_half_day_report" sourceRef="gw_check_half_day" targetRef="reportBackApply">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${days <= 0.5}]]></conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flow_half_day_vice" sourceRef="gw_check_half_day" targetRef="viceLeaderAudit">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${days > 0.5}]]></conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flow_vice_gw_vice" sourceRef="viceLeaderAudit" targetRef="gw_vice_audit"/>
+        <sequenceFlow id="flow_gw_vice_reject" sourceRef="gw_vice_audit" targetRef="rejectEnd">
+             <conditionExpression xsi:type="tFormalExpression"><![CDATA[${!approved}]]></conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flow_gw_vice_three_days" sourceRef="gw_vice_audit" targetRef="gw_check_three_days">
+             <conditionExpression xsi:type="tFormalExpression"><![CDATA[${approved}]]></conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flow_three_days_report" sourceRef="gw_check_three_days" targetRef="reportBackApply">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${days <= 3}]]></conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flow_three_days_main" sourceRef="gw_check_three_days" targetRef="mainLeaderAudit">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${days > 3}]]></conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flow_main_gw_main" sourceRef="mainLeaderAudit" targetRef="gw_main_audit"/>
+        <sequenceFlow id="flow_gw_main_reject" sourceRef="gw_main_audit" targetRef="rejectEnd">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${!approved}]]></conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flow_gw_main_report" sourceRef="gw_main_audit" targetRef="reportBackApply">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${approved}]]></conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flow_report_manager" sourceRef="reportBackApply" targetRef="reportBackManager"/>
+        <sequenceFlow id="flow_manager_admin" sourceRef="reportBackManager" targetRef="reportBackAdmin"/>
+        <sequenceFlow id="flow_admin_end" sourceRef="reportBackAdmin" targetRef="end"/>
+    </process>
+
+    <!-- BPMN Diagram for visualization -->
+    <bpmndi:BPMNDiagram id="BPMNDiagram_leaveAndCancelProcess">
+        <bpmndi:BPMNPlane bpmnElement="leaveAndCancelProcess" id="BPMNPlane_leaveAndCancelProcess">
+            
+            <!-- 第一部分：请假申请与审批 -->
+            <!-- Start Event -->
+            <bpmndi:BPMNShape id="BPMNShape_start" bpmnElement="start">
+                <dc:Bounds x="50" y="200" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="40" y="240" width="56" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- User Task: 提交请假申请 -->
+            <bpmndi:BPMNShape id="BPMNShape_submit" bpmnElement="submit">
+                <dc:Bounds x="120" y="180" width="100" height="80"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="110" y="265" width="120" height="40"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- Gateway: 申请人身份判断 -->
+            <bpmndi:BPMNShape id="BPMNShape_gw_role_check" bpmnElement="gw_role_check">
+                <dc:Bounds x="260" y="195" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="245" y="250" width="80" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- User Task: 部门主管审批 (非领导分支) -->
+            <bpmndi:BPMNShape id="BPMNShape_deptManagerAudit" bpmnElement="deptManagerAudit">
+                <dc:Bounds x="350" y="80" width="100" height="80"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="340" y="165" width="120" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- Gateway: 主管审批网关 -->
+            <bpmndi:BPMNShape id="BPMNShape_gw_dept_audit" bpmnElement="gw_dept_audit">
+                <dc:Bounds x="490" y="95" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="475" y="150" width="80" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- User Task: 行政办审批 -->
+            <bpmndi:BPMNShape id="BPMNShape_adminOfficeAudit" bpmnElement="adminOfficeAudit">
+                <dc:Bounds x="580" y="80" width="100" height="80"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="570" y="165" width="120" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- Gateway: 行政审批网关 -->
+            <bpmndi:BPMNShape id="BPMNShape_gw_admin_audit" bpmnElement="gw_admin_audit">
+                <dc:Bounds x="720" y="95" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="705" y="150" width="80" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- Gateway: 是否大于半天? -->
+            <bpmndi:BPMNShape id="BPMNShape_gw_check_half_day" bpmnElement="gw_check_half_day">
+                <dc:Bounds x="810" y="95" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="795" y="150" width="80" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- User Task: 分管领导审批 -->
+            <bpmndi:BPMNShape id="BPMNShape_viceLeaderAudit" bpmnElement="viceLeaderAudit">
+                <dc:Bounds x="900" y="80" width="100" height="80"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="890" y="165" width="120" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- Gateway: 分管审批网关 -->
+            <bpmndi:BPMNShape id="BPMNShape_gw_vice_audit" bpmnElement="gw_vice_audit">
+                <dc:Bounds x="1040" y="95" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="1025" y="150" width="80" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- Gateway: 是否大于3天? -->
+            <bpmndi:BPMNShape id="BPMNShape_gw_check_three_days" bpmnElement="gw_check_three_days">
+                <dc:Bounds x="1130" y="95" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="1115" y="150" width="80" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- User Task: 主要领导审批 -->
+            <bpmndi:BPMNShape id="BPMNShape_mainLeaderAudit" bpmnElement="mainLeaderAudit">
+                <dc:Bounds x="350" y="320" width="100" height="80"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="340" y="405" width="120" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- Gateway: 主领导审批网关 -->
+            <bpmndi:BPMNShape id="BPMNShape_gw_main_audit" bpmnElement="gw_main_audit">
+                <dc:Bounds x="490" y="335" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="475" y="390" width="80" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- 第二部分：销假流程 -->
+            <!-- User Task: 发起销假/销假申请 -->
+            <bpmndi:BPMNShape id="BPMNShape_reportBackApply" bpmnElement="reportBackApply">
+                <dc:Bounds x="580" y="320" width="100" height="80"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="570" y="405" width="120" height="40"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- User Task: 销假-主管确认 -->
+            <bpmndi:BPMNShape id="BPMNShape_reportBackManager" bpmnElement="reportBackManager">
+                <dc:Bounds x="720" y="320" width="100" height="80"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="710" y="405" width="120" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- User Task: 销假-行政办归档 -->
+            <bpmndi:BPMNShape id="BPMNShape_reportBackAdmin" bpmnElement="reportBackAdmin">
+                <dc:Bounds x="860" y="320" width="100" height="80"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="850" y="405" width="120" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- End Event: 流程结束(已销假) -->
+            <bpmndi:BPMNShape id="BPMNShape_end" bpmnElement="end">
+                <dc:Bounds x="1000" y="340" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="970" y="380" width="96" height="40"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- End Event: 已驳回 -->
+            <bpmndi:BPMNShape id="BPMNShape_rejectEnd" bpmnElement="rejectEnd">
+                <dc:Bounds x="490" y="500" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="460" y="540" width="96" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- Sequence Flows -->
+            <!-- 请假申请部分 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_start_submit" bpmnElement="flow_start_submit">
+                <di:waypoint x="86" y="218"/>
+                <di:waypoint x="120" y="218"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_submit_gw_role" bpmnElement="flow_submit_gw_role">
+                <di:waypoint x="220" y="218"/>
+                <di:waypoint x="260" y="220"/>
+            </bpmndi:BPMNEdge>
+            
+            <!-- 身份判断后的分支 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_gw_role_dept" bpmnElement="flow_gw_role_dept">
+                <di:waypoint x="285" y="220"/>
+                <di:waypoint x="285" y="120"/>
+                <di:waypoint x="350" y="120"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_gw_role_main" bpmnElement="flow_gw_role_main">
+                <di:waypoint x="285" y="220"/>
+                <di:waypoint x="285" y="360"/>
+                <di:waypoint x="350" y="360"/>
+            </bpmndi:BPMNEdge>
+            
+            <!-- 部门主管审批流程 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_dept_gw_dept" bpmnElement="flow_dept_gw_dept">
+                <di:waypoint x="450" y="120"/>
+                <di:waypoint x="490" y="120"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_gw_dept_admin" bpmnElement="flow_gw_dept_admin">
+                <di:waypoint x="515" y="120"/>
+                <di:waypoint x="580" y="120"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_gw_dept_reject" bpmnElement="flow_gw_dept_reject">
+                <di:waypoint x="490" y="145"/>
+                <di:waypoint x="490" y="500"/>
+                <di:waypoint x="508" y="500"/>
+            </bpmndi:BPMNEdge>
+            
+            <!-- 行政办审批流程 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_admin_gw_admin" bpmnElement="flow_admin_gw_admin">
+                <di:waypoint x="680" y="120"/>
+                <di:waypoint x="720" y="120"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_gw_admin_half_day" bpmnElement="flow_gw_admin_half_day">
+                <di:waypoint x="745" y="120"/>
+                <di:waypoint x="810" y="120"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_gw_admin_reject" bpmnElement="flow_gw_admin_reject">
+                <di:waypoint x="720" y="145"/>
+                <di:waypoint x="720" y="500"/>
+                <di:waypoint x="526" y="500"/>
+            </bpmndi:BPMNEdge>
+            
+            <!-- 是否大于半天分支 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_half_day_report" bpmnElement="flow_half_day_report">
+                <di:waypoint x="810" y="145"/>
+                <di:waypoint x="810" y="360"/>
+                <di:waypoint x="580" y="360"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_half_day_vice" bpmnElement="flow_half_day_vice">
+                <di:waypoint x="835" y="120"/>
+                <di:waypoint x="900" y="120"/>
+            </bpmndi:BPMNEdge>
+            
+            <!-- 分管领导审批流程 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_vice_gw_vice" bpmnElement="flow_vice_gw_vice">
+                <di:waypoint x="1000" y="120"/>
+                <di:waypoint x="1040" y="120"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_gw_vice_three_days" bpmnElement="flow_gw_vice_three_days">
+                <di:waypoint x="1065" y="120"/>
+                <di:waypoint x="1130" y="120"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_gw_vice_reject" bpmnElement="flow_gw_vice_reject">
+                <di:waypoint x="1040" y="145"/>
+                <di:waypoint x="1040" y="500"/>
+                <di:waypoint x="526" y="500"/>
+            </bpmndi:BPMNEdge>
+            
+            <!-- 是否大于3天分支 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_three_days_report" bpmnElement="flow_three_days_report">
+                <di:waypoint x="1130" y="145"/>
+                <di:waypoint x="1130" y="360"/>
+                <di:waypoint x="680" y="360"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_three_days_main" bpmnElement="flow_three_days_main">
+                <di:waypoint x="1155" y="120"/>
+                <di:waypoint x="1200" y="120"/>
+                <di:waypoint x="1200" y="360"/>
+                <di:waypoint x="450" y="360"/>
+            </bpmndi:BPMNEdge>
+            
+            <!-- 主要领导审批流程 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_main_gw_main" bpmnElement="flow_main_gw_main">
+                <di:waypoint x="450" y="360"/>
+                <di:waypoint x="490" y="360"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_gw_main_report" bpmnElement="flow_gw_main_report">
+                <di:waypoint x="515" y="360"/>
+                <di:waypoint x="580" y="360"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_gw_main_reject" bpmnElement="flow_gw_main_reject">
+                <di:waypoint x="490" y="385"/>
+                <di:waypoint x="490" y="500"/>
+            </bpmndi:BPMNEdge>
+            
+            <!-- 销假流程 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_report_manager" bpmnElement="flow_report_manager">
+                <di:waypoint x="680" y="360"/>
+                <di:waypoint x="720" y="360"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_manager_admin" bpmnElement="flow_manager_admin">
+                <di:waypoint x="820" y="360"/>
+                <di:waypoint x="860" y="360"/>
+            </bpmndi:BPMNEdge>
+            
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_admin_end" bpmnElement="flow_admin_end">
+                <di:waypoint x="960" y="358"/>
+                <di:waypoint x="1000" y="358"/>
+            </bpmndi:BPMNEdge>
+            
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+</definitions>

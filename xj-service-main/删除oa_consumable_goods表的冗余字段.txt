@@ -1,0 +1,1 @@
+ALTER TABLE oa_consumable_goods DROP COLUMN storage_location;

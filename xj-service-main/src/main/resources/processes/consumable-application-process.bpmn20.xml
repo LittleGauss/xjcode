@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions 
+    xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:flowable="http://flowable.org/bpmn"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    targetNamespace="http://flowable.org/bpmn">
+
+    <process id="consumableApplicationProcess" name="耗材领用审批流程" isExecutable="true">
+
+        <!-- 开始事件 -->
+        <startEvent id="start"/>
+
+        <!-- 申请人提交申请 -->
+        <userTask id="submitApplication" name="提交申请" flowable:assignee="${applicantId}"/>
+
+        <!-- 根据耗材类型决定审批路径 -->
+        <exclusiveGateway id="decideApprovalPath" name="决定审批路径"/>
+
+        <!-- 电子耗材审批路径（补ID） -->
+        <sequenceFlow id="seq_decide_to_electronic" sourceRef="decideApprovalPath" targetRef="infoCenterApproval">
+            <conditionExpression xsi:type="tFormalExpression">
+                <![CDATA[${consumableType == 'electronic'}]]>
+            </conditionExpression>
+        </sequenceFlow>
+
+        <!-- 实验耗材审批路径（补ID） -->
+        <sequenceFlow id="seq_decide_to_experimental" sourceRef="decideApprovalPath" targetRef="qualityCenterApproval">
+            <conditionExpression xsi:type="tFormalExpression">
+                <![CDATA[${consumableType == 'experimental'}]]>
+            </conditionExpression>
+        </sequenceFlow>
+
+        <!-- 通用耗材审批路径（补ID） -->
+        <sequenceFlow id="seq_decide_to_general" sourceRef="decideApprovalPath" targetRef="departmentApproval">
+            <conditionExpression xsi:type="tFormalExpression">
+                <![CDATA[${consumableType != 'electronic' and consumableType != 'experimental'}]]>
+            </conditionExpression>
+        </sequenceFlow>
+
+        <!-- 信息中心审批（电子耗材） -->
+        <userTask id="infoCenterApproval" name="信息中心审批" flowable:assignee="${infoApprover}">
+            <extensionElements>
+                <flowable:formProperty id="firstApproved" name="是否批准" type="boolean" required="true"/>
+                <flowable:formProperty id="firstComment" name="审批意见" type="string"/>
+            </extensionElements>
+        </userTask>
+
+        <!-- 质量中心审批（实验耗材） -->
+        <userTask id="qualityCenterApproval" name="质量中心审批" flowable:assignee="${infoApprover}">
+            <extensionElements>
+                <flowable:formProperty id="firstApproved" name="是否批准" type="boolean" required="true"/>
+                <flowable:formProperty id="firstComment" name="审批意见" type="string"/>
+            </extensionElements>
+        </userTask>
+
+        <!-- 部门负责人审批（通用耗材） -->
+        <userTask id="departmentApproval" name="部门负责人审批" flowable:assignee="${infoApprover}">
+            <extensionElements>
+                <flowable:formProperty id="firstApproved" name="是否批准" type="boolean" required="true"/>
+                <flowable:formProperty id="firstComment" name="审批意见" type="string"/>
+            </extensionElements>
+        </userTask>
+
+        <!-- 审批结果网关 -->
+        <exclusiveGateway id="firstApprovalGateway" name="一级审批结果"/>
+
+        <!-- 后保部审核 -->
+        <userTask id="logisticsApproval" name="后保部审核" flowable:assignee="${logisticsApprover}">
+            <extensionElements>
+                <flowable:formProperty id="finalApproved" name="是否批准" type="boolean" required="true"/>
+                <flowable:formProperty id="finalComment" name="审核意见" type="string"/>
+                <flowable:formProperty id="distributeQuantity" name="实际发放数量" type="long"/>
+            </extensionElements>
+        </userTask>
+
+        <!-- 最终审批结果网关 -->
+        <exclusiveGateway id="finalApprovalGateway" name="最终审批结果"/>
+
+        <!-- 结束事件 -->
+        <endEvent id="end" name="审批通过"/>
+        <endEvent id="rejectEnd" name="已驳回"/>
+
+        <!-- 流程连接（全量补ID） -->
+        <sequenceFlow id="seq_start_to_submit" sourceRef="start" targetRef="submitApplication"/>
+        <sequenceFlow id="seq_submit_to_decide" sourceRef="submitApplication" targetRef="decideApprovalPath"/>
+
+        <!-- 一级审批到后保部审核的连接（补ID） -->
+        <sequenceFlow id="seq_info_to_first_gateway" sourceRef="infoCenterApproval" targetRef="firstApprovalGateway"/>
+        <sequenceFlow id="seq_quality_to_first_gateway" sourceRef="qualityCenterApproval" targetRef="firstApprovalGateway"/>
+        <sequenceFlow id="seq_department_to_first_gateway" sourceRef="departmentApproval" targetRef="firstApprovalGateway"/>
+
+        <!-- 一级审批结果处理（补ID） -->
+        <sequenceFlow id="seq_first_gateway_to_logistics" sourceRef="firstApprovalGateway" targetRef="logisticsApproval">
+            <conditionExpression xsi:type="tFormalExpression">
+                <![CDATA[${firstApproved}]]>
+            </conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="seq_first_gateway_to_reject" sourceRef="firstApprovalGateway" targetRef="rejectEnd">
+            <conditionExpression xsi:type="tFormalExpression">
+                <![CDATA[${!firstApproved}]]>
+            </conditionExpression>
+        </sequenceFlow>
+
+        <!-- 后保部审核到最终结果（补ID） -->
+        <sequenceFlow id="seq_logistics_to_final_gateway" sourceRef="logisticsApproval" targetRef="finalApprovalGateway"/>
+
+        <!-- 最终审批结果处理（补ID） -->
+        <sequenceFlow id="seq_final_gateway_to_approve" sourceRef="finalApprovalGateway" targetRef="end">
+            <conditionExpression xsi:type="tFormalExpression">
+                <![CDATA[${finalApproved}]]>
+            </conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="seq_final_gateway_to_reject" sourceRef="finalApprovalGateway" targetRef="rejectEnd">
+            <conditionExpression xsi:type="tFormalExpression">
+                <![CDATA[${!finalApproved}]]>
+            </conditionExpression>
+        </sequenceFlow>
+
+    </process>
+    <!-- 新增：图形化定义 -->
+    <bpmndi:BPMNDiagram id="BPMNDiagram_consumableApplicationProcess">
+        <bpmndi:BPMNPlane id="BPMNPlane_consumableApplicationProcess" bpmnElement="consumableApplicationProcess">
+            <!-- 开始事件 -->
+            <bpmndi:BPMNShape id="_BPMNShape_start" bpmnElement="start">
+                <dc:Bounds x="200" y="150" width="30" height="30"/>
+            </bpmndi:BPMNShape>
+            <!-- 提交申请 -->
+            <bpmndi:BPMNShape id="_BPMNShape_submitApplication" bpmnElement="submitApplication">
+                <dc:Bounds x="200" y="220" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+            <!-- 决定审批路径网关 -->
+            <bpmndi:BPMNShape id="_BPMNShape_decideApprovalPath" bpmnElement="decideApprovalPath">
+                <dc:Bounds x="200" y="340" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <!-- 信息中心审批 -->
+            <bpmndi:BPMNShape id="_BPMNShape_infoCenterApproval" bpmnElement="infoCenterApproval">
+                <dc:Bounds x="80" y="340" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+            <!-- 质量中心审批 -->
+            <bpmndi:BPMNShape id="_BPMNShape_qualityCenterApproval" bpmnElement="qualityCenterApproval">
+                <dc:Bounds x="200" y="430" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+            <!-- 部门负责人审批 -->
+            <bpmndi:BPMNShape id="_BPMNShape_departmentApproval" bpmnElement="departmentApproval">
+                <dc:Bounds x="320" y="340" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+            <!-- 一级审批结果网关 -->
+            <bpmndi:BPMNShape id="_BPMNShape_firstApprovalGateway" bpmnElement="firstApprovalGateway">
+                <dc:Bounds x="200" y="550" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <!-- 后保部审核 -->
+            <bpmndi:BPMNShape id="_BPMNShape_logisticsApproval" bpmnElement="logisticsApproval">
+                <dc:Bounds x="200" y="630" width="100" height="80"/>
+            </bpmndi:BPMNShape>
+            <!-- 最终审批结果网关 -->
+            <bpmndi:BPMNShape id="_BPMNShape_finalApprovalGateway" bpmnElement="finalApprovalGateway">
+                <dc:Bounds x="200" y="750" width="50" height="50"/>
+            </bpmndi:BPMNShape>
+            <!-- 结束事件（通过） -->
+            <bpmndi:BPMNShape id="_BPMNShape_end" bpmnElement="end">
+                <dc:Bounds x="200" y="830" width="30" height="30"/>
+            </bpmndi:BPMNShape>
+            <!-- 结束事件（驳回） -->
+            <bpmndi:BPMNShape id="_BPMNShape_rejectEnd" bpmnElement="rejectEnd">
+                <dc:Bounds x="350" y="550" width="30" height="30"/>
+            </bpmndi:BPMNShape>
+
+            <!-- 连线图形定义（与sequenceFlow ID一一对应） -->
+            <bpmndi:BPMNEdge id="_BPMNEdge_seq_start_to_submit" bpmnElement="seq_start_to_submit">
+                <di:waypoint x="215" y="180"/>
+                <di:waypoint x="215" y="220"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="_BPMNEdge_seq_submit_to_decide" bpmnElement="seq_submit_to_decide">
+                <di:waypoint x="215" y="300"/>
+                <di:waypoint x="215" y="340"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="_BPMNEdge_seq_decide_to_electronic" bpmnElement="seq_decide_to_electronic">
+                <di:waypoint x="175" y="365"/>
+                <di:waypoint x="80" y="380"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="_BPMNEdge_seq_decide_to_experimental" bpmnElement="seq_decide_to_experimental">
+                <di:waypoint x="215" y="390"/>
+                <di:waypoint x="215" y="430"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="_BPMNEdge_seq_decide_to_general" bpmnElement="seq_decide_to_general">
+                <di:waypoint x="250" y="365"/>
+                <di:waypoint x="320" y="380"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="_BPMNEdge_seq_info_to_first_gateway" bpmnElement="seq_info_to_first_gateway">
+                <di:waypoint x="180" y="380"/>
+                <di:waypoint x="190" y="550"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="_BPMNEdge_seq_quality_to_first_gateway" bpmnElement="seq_quality_to_first_gateway">
+                <di:waypoint x="215" y="510"/>
+                <di:waypoint x="215" y="550"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="_BPMNEdge_seq_department_to_first_gateway" bpmnElement="seq_department_to_first_gateway">
+                <di:waypoint x="320" y="380"/>
+                <di:waypoint x="230" y="550"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="_BPMNEdge_seq_first_gateway_to_logistics" bpmnElement="seq_first_gateway_to_logistics">
+                <di:waypoint x="215" y="600"/>
+                <di:waypoint x="215" y="630"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="_BPMNEdge_seq_first_gateway_to_reject" bpmnElement="seq_first_gateway_to_reject">
+                <di:waypoint x="230" y="575"/>
+                <di:waypoint x="350" y="565"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="_BPMNEdge_seq_logistics_to_final_gateway" bpmnElement="seq_logistics_to_final_gateway">
+                <di:waypoint x="215" y="710"/>
+                <di:waypoint x="215" y="750"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="_BPMNEdge_seq_final_gateway_to_approve" bpmnElement="seq_final_gateway_to_approve">
+                <di:waypoint x="215" y="800"/>
+                <di:waypoint x="215" y="830"/>
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="_BPMNEdge_seq_final_gateway_to_reject" bpmnElement="seq_final_gateway_to_reject">
+                <di:waypoint x="230" y="775"/>
+                <di:waypoint x="350" y="565"/>
+            </bpmndi:BPMNEdge>
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+</definitions>

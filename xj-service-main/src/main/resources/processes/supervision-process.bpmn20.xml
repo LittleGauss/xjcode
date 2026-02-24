@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             targetNamespace="http://flowable.org/bpmn">
+    <process id="supervision" name="督察流程" isExecutable="true">
+        <startEvent id="start" />
+
+        <!-- 处理人处理任务 -->
+        <userTask id="handle" name="处理督察" flowable:assignee="${assignee}" />
+
+        <!-- 发起人审批：处理人提交反馈后，发起人审批通过或驳回 -->
+        <userTask id="review" name="发起人审批" flowable:assignee="${starter}" />
+
+        <!-- 决策：通过则结束，驳回则回到处理人继续处理 -->
+        <exclusiveGateway id="approveGateway" name="是否通过" />
+
+        <endEvent id="end" />
+
+        <sequenceFlow id="flow_start_handle" sourceRef="start" targetRef="handle" />
+        <sequenceFlow id="flow_handle_review" sourceRef="handle" targetRef="review" />
+        <sequenceFlow id="flow_approve" sourceRef="review" targetRef="approveGateway" />
+        <sequenceFlow id="flow_to_end" sourceRef="approveGateway" targetRef="end">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${approved == true}]]></conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flow_reject" sourceRef="approveGateway" targetRef="handle">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${approved == false}]]></conditionExpression>
+        </sequenceFlow>
+    </process>
+
+    <!-- BPMN Diagram for visualization -->
+    <bpmndi:BPMNDiagram id="BPMNDiagram_supervision">
+        <bpmndi:BPMNPlane bpmnElement="supervision" id="BPMNPlane_supervision">
+            
+            <!-- Start Event -->
+            <bpmndi:BPMNShape id="BPMNShape_start" bpmnElement="start">
+                <dc:Bounds x="50" y="150" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="35" y="190" width="66" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- End Event -->
+            <bpmndi:BPMNShape id="BPMNShape_end" bpmnElement="end">
+                <dc:Bounds x="450" y="150" width="36" height="36"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="445" y="190" width="46" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- User Task: 处理督察 -->
+            <bpmndi:BPMNShape id="BPMNShape_handle" bpmnElement="handle">
+                <dc:Bounds x="120" y="130" width="100" height="80"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="120" y="215" width="100" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- User Task: 发起人审批 -->
+            <bpmndi:BPMNShape id="BPMNShape_review" bpmnElement="review">
+                <dc:Bounds x="260" y="130" width="100" height="80"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="260" y="215" width="100" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- Exclusive Gateway: 是否通过 -->
+            <bpmndi:BPMNShape id="BPMNShape_approveGateway" bpmnElement="approveGateway">
+                <dc:Bounds x="390" y="145" width="50" height="50"/>
+                <bpmndi:BPMNLabel>
+                    <dc:Bounds x="380" y="200" width="70" height="20"/>
+                </bpmndi:BPMNLabel>
+            </bpmndi:BPMNShape>
+            
+            <!-- Sequence Flows -->
+            <!-- 开始 -> 处理督察 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_start_handle" bpmnElement="flow_start_handle">
+                <di:waypoint x="86" y="168"/>
+                <di:waypoint x="120" y="168"/>
+            </bpmndi:BPMNEdge>
+            
+            <!-- 处理督察 -> 发起人审批 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_handle_review" bpmnElement="flow_handle_review">
+                <di:waypoint x="220" y="168"/>
+                <di:waypoint x="260" y="168"/>
+            </bpmndi:BPMNEdge>
+            
+            <!-- 发起人审批 -> 网关 -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_approve" bpmnElement="flow_approve">
+                <di:waypoint x="360" y="168"/>
+                <di:waypoint x="390" y="170"/>
+            </bpmndi:BPMNEdge>
+            
+            <!-- 网关 -> 结束 (通过) -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_to_end" bpmnElement="flow_to_end">
+                <di:waypoint x="415" y="170"/>
+                <di:waypoint x="450" y="168"/>
+            </bpmndi:BPMNEdge>
+            
+            <!-- 网关 -> 处理督察 (驳回) -->
+            <bpmndi:BPMNEdge id="BPMNEdge_flow_reject" bpmnElement="flow_reject">
+                <di:waypoint x="390" y="195"/>
+                <di:waypoint x="390" y="250"/>
+                <di:waypoint x="170" y="250"/>
+                <di:waypoint x="170" y="210"/>
+            </bpmndi:BPMNEdge>
+            
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+</definitions>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.xj_service.oa.mapper.ConsumableStockInApprovalMapper">
+
+    <!-- 如果有复杂查询可以在这里定义 -->
+<!--    <select id="getMyApplicationsWithStatus" resultType="org.xj_service.oa.entity.ConsumableStockInApproval">-->
+<!--        SELECT * FROM oa_consumable_stock_in_approval-->
+<!--        WHERE applicant_id = #{applicantId}-->
+<!--          AND status = #{status}-->
+<!--        ORDER BY apply_time DESC-->
+<!--    </select>-->
+    <!-- 新增：只改待审批列表的查询 -->
+    <select id="selectPendingApprovalsWithNickname" resultType="org.xj_service.oa.entity.ConsumableStockInApproval">
+        SELECT
+        a.*,
+        u.nickname as applicantNickname  <!-- 改为驼峰命名 -->
+        FROM oa_consumable_stock_in_approval a
+        LEFT JOIN sys_user u ON a.applicant_id = u.id
+        WHERE a.approver_id = #{approverId}
+        AND a.status = 'PENDING'
+        ORDER BY a.apply_time DESC
+    </select>
+
+</mapper>

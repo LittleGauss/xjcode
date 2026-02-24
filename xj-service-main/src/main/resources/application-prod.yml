@@ -1,0 +1,74 @@
+# Docker部署环境 - 所有配置从Docker环境变量读取
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 数据库地址：从环境变量DB_URL读取，默认值为Docker Compose中的mysql服务地址
+    url: ${DB_URL:jdbc:mysql://mysql:3306/oa_service?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:oa_service}  # 数据库用户名（环境变量：DB_USERNAME）
+    password: ${DB_PASSWORD:}      # 数据库密码（必填，环境变量：DB_PASSWORD）
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:25}  # 最大连接数
+      minimum-idle: ${DB_POOL_MIN:10}       # 最小空闲连接
+      connection-timeout: ${DB_TIMEOUT:30000}  # 连接超时时间（毫秒）
+  flowable:
+    database-schema-update: true    # 生产环境关闭自动更新（VALIDATE避免误操作）
+    history-level: full              # 保持完整历史记录
+    check-process-definitions: false
+    async-executor-activate: true    # 生产环境激活异步执行器
+    activity-font-name: "Noto Sans CJK SC, WenQuanYi Micro Hei, sans-serif"
+    label-font-name: "Noto Sans CJK SC, WenQuanYi Micro Hei, sans-serif"
+    annotation-font-name: "Noto Sans CJK SC, WenQuanYi Micro Hei, sans-serif"
+    # 异步执行器线程池配置（生产环境必配）
+    async-executor-core-pool-size: 8    # 核心线程数（根据CPU核心数调整，比如CPU 8核配5-8）
+    async-executor-max-pool-size: 20    # 最大线程数（核心数的3-4倍）
+    async-executor-queue-capacity: 500  # 任务队列容量（避免队列满导致任务拒绝）
+    async-executor-keep-alive-time: 120 # 空闲线程存活时间（秒）
+    async-executor-rejected-handler: AbortPolicy # 任务拒绝策略（默认AbortPolicy，可根据需求改为CallerRunsPolicy）
+  redis:
+    host: ${REDIS_HOST:redis}        # Redis地址（默认Docker Compose中的redis服务名）
+    port: ${REDIS_PORT:6379}         # Redis端口（环境变量：REDIS_PORT）
+    password: ${REDIS_PASSWORD:}     # Redis密码（环境变量：REDIS_PASSWORD）
+    database: ${REDIS_DB:1}          # Redis数据库（环境变量：REDIS_DB）
+    timeout: ${REDIS_TIMEOUT:2000ms}
+    jedis:
+      pool:
+        max-active: ${REDIS_POOL_MAX_ACTIVE:8}
+        max-wait: ${REDIS_POOL_MAX_WAIT:-1ms}
+        max-idle: ${REDIS_POOL_MAX_IDLE:8}
+        min-idle: ${REDIS_POOL_MIN_IDLE:0}
+task:
+  scheduling:
+    pool:
+      size: 10  # 定时任务线程池大小
+    thread-name-prefix: task-scheduler-  # 线程名前缀
+    overdue:
+      cron: "0 0 * * * *"  # 每1小时执行一次
+# 文件配置：Docker容器内路径，通过环境变量注入
+file:
+  upload:
+    path: ${FILE_UPLOAD_PATH:/app/uploads/}  # 容器内上传目录（环境变量：FILE_UPLOAD_PATH）
+  storage:
+    type: ${FILE_STORAGE_TYPE:minio}         # 存储类型（环境变量：FILE_STORAGE_TYPE）
+    minio:
+      endpoint: ${MINIO_ENDPOINT:http://minio:9000}  # MinIO地址（默认Docker Compose中的minio服务名）
+      access-key: ${MINIO_ACCESS_KEY:admin}          # MinIO访问密钥（环境变量：MINIO_ACCESS_KEY）
+      secret-key: ${MINIO_SECRET_KEY:87984295}                # MinIO密钥（必填，环境变量：MINIO_SECRET_KEY）
+      default-bucket: ${MINIO_DEFAULT_BUCKET:oa-files}
+      bucket-name: ${MINIO_BUCKET_NAME:oa-files}      # OA专用存储桶（环境变量：MINIO_BUCKET_NAME）
+
+# 生产环境日志配置（关闭MyBatis日志，减少开销）
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+logging:
+  level:
+    org.flowable: ERROR  # 生产环境Flowable日志级别调整为ERROR（减少日志量）
+    org.flowable.job.service.impl.asyncexecutor: ERROR
+    org.flowable.engine.impl.persistence.entity: ERROR
+    com.baomidou.mybatisplus: WARN
+
+# 生产环境强制开启RSA加密（安全起见）
+app:
+  password:
+    force-rsa-encrypt: true

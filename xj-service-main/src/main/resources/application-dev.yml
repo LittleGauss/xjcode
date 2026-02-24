@@ -1,0 +1,66 @@
+# 本地开发环境 - 本地数据库、Redis、MinIO配置
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/oa_service?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: Test@123456
+  flowable:
+    database-schema-update: true     # 自动更新数据库结构（开发环境开启）
+    history-level: full              # 完整历史记录（方便调试）
+    check-process-definitions: true # 不检查流程定义文件
+    async-executor-activate: true    # 激活异步执行器
+    activity-font-name: "Noto Sans CJK SC, WenQuanYi Micro Hei, sans-serif"
+    label-font-name: "Noto Sans CJK SC, WenQuanYi Micro Hei, sans-serif"
+    annotation-font-name: "Noto Sans CJK SC, WenQuanYi Micro Hei, sans-serif"
+    # 异步执行器线程池配置（生产环境必配）
+    async-executor-core-pool-size: 8    # 核心线程数（根据CPU核心数调整，比如CPU 8核配5-8）
+    async-executor-max-pool-size: 20    # 最大线程数（核心数的3-4倍）
+    async-executor-queue-capacity: 500  # 任务队列容量（避免队列满导致任务拒绝）
+    async-executor-keep-alive-time: 120 # 空闲线程存活时间（秒）
+    async-executor-rejected-handler: AbortPolicy # 任务拒绝策略（默认AbortPolicy，可根据需求改为CallerRunsPolicy）
+  redis:
+    host: localhost
+    port: 6379
+    password: 12345
+    database: 1
+    timeout: 2000ms
+    jedis:
+      pool:
+        max-active: 8
+        max-wait: -1ms
+        max-idle: 8
+        min-idle: 0
+# 定时任务配置
+task:
+  scheduling:
+    pool:
+      size: 10  # 定时任务线程池大小
+    thread-name-prefix: task-scheduler-  # 线程名前缀
+    overdue:
+      cron: "0 */1 * * * *"  # 每1分钟执行一次
+# 本地文件上传路径（相对路径，避免本地绝对路径依赖）
+file:
+  upload:
+    path: ./uploads/  # 本地项目根目录下的uploads文件夹
+  storage:
+    type: minio
+    minio:
+      endpoint: http://localhost:9005  # 本地MinIO服务地址
+      access-key: admin                # 本地MinIO访问密钥
+      secret-key: 87984295             # 本地MinIO密钥
+      default-bucket: default-files    # 本地默认存储桶
+      bucket-name: oa-files            # 本地OA专用存储桶
+
+# 开发环境日志配置（开启MyBatis日志，方便调试SQL）
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+    # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  开启MyBatis SQL日志
+
+logging:
+  level:
+    org.flowable: WARN  # Flowable日志级别保持WARN
+    org.flowable.job.service.impl.asyncexecutor: WARN
+    org.flowable.engine.impl.persistence.entity: WARN
+    com.baomidou.mybatisplus: DEBUG  # MyBatis-Plus日志级别DEBUG（方便调试）

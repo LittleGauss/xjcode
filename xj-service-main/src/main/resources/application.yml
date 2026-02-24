@@ -1,0 +1,56 @@
+# 主配置：所有环境共享的配置 + 环境激活开关
+server:
+  port: 8802  # 默认端口，Docker部署可通过 -e SERVER_PORT=8090 覆盖
+  servlet:
+    context-path: /xj  # 全局接口前缀，所有接口自动加 /xj
+
+spring:
+  application:
+    name: oa-service  # 应用名（共享）
+  profiles:
+    active: dev  # 本地开发默认激活dev，Docker部署时通过 -e SPRING_PROFILES_ACTIVE=prod 覆盖
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher  # 所有环境共用的mvc配置
+  servlet:
+    multipart:
+      max-file-size: 10MB  # 文件上传限制（共用）
+      max-request-size: 100MB
+logging:
+  file:
+    name: logs/myapp.log
+  # 设置日志文件达到 10MB 时进行归档/滚动
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      # 设置日志文件最多保留 7 天
+      clean-history-on-start: true
+      max-history: 7
+
+# MyBatis基础配置（共用，日志实现由环境单独配置）
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: org.example.oa.mybatis.entity
+
+mybatis-plus:
+  configuration:
+    # 日志实现由dev/prod单独配置（开发开日志，部署关日志）
+    map-underscore-to-camel-case: true  # 下划线转驼峰（共用优化）
+
+# SpringDoc Swagger配置（共用，开发/部署都开启）
+# 地址 http://localhost:8802/xj/swagger-ui/index.html    /xj/v3/api-docs
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
+# 自定义密码加密配置（所有人统一，共用）
+app:
+  password:
+    rsa:
+      public-key: MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApKAqP8GsXKJxcB3kX/6qsQfG6k79SNwu2krOdRMUSmJNxPv/zsXztdX++oqTrJs43ccX9Ji2dsHF6oIcZWXsbY+tEEYhRNZiEXXYvuPtPRyySv5PrIKWXJOFVl2ZiRW83nbmsXgjDjDJ4+8BoLrOqedaqAZx/O5mG+8H94G0ziCg06dWUvGscm7BX49BJRyOKcxsOG+2vOIuRIUtH7MBO/tGFOMaJgSiZQ+SEwZmkF8ZjN1UOVUe61T7/Rp11S8Ovl7UyHOjatvmupxDlV5ATRbY33btWZsEuu7N7GhpORZVP+Dc1TekPiZsOs7fdOBEGE7vVYQHtbZsextBVyv6vQIDAQAB
+      private-key: MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCkoCo/waxconFwHeRf/qqxB8bqTv1I3C7aSs51ExRKYk3E+//OxfO11f76ipOsmzjdxxf0mLZ2wcXqghxlZextj60QRiFE1mIRddi+4+09HLJK/k+sgpZck4VWXZmJFbzeduaxeCMOMMnj7wGgus6p51qoBnH87mYb7wf3gbTOIKDTp1ZS8axybsFfj0ElHI4pzGw4b7a84i5EhS0fswE7+0YU4xomBKJlD5ITBmaQXxmM3VQ5VR7rVPv9GnXVLw6+XtTIc6Nq2+a6nEOVXkBNFtjfdu1ZmwS67s3saGk5FlU/4NzVN6Q+Jmw6zt904EQYTu9VhAe1tmx7G0FXK/q9AgMBAAECggEAHK5y7ey2NOVwUhJDKZ5a6sDqHQRqCHmkCBAkbC1IybTay8kDxmiijzmbVNcz50yb2bfIKqs4jvQvoS3N+LSLPoNbqYwuW6nmKBiaDJf1S0Jmpb4s72dI/xQMlQF1sHaDE1cv1heSM/S4F+gaJoClZOCT4NZOobx/ObqpbqvAbnDknkSM1Y0p82Pmu9i2Vng3c0ATTCCpdgHexeBVCmA3XVBURlsanHdkmhRx5whpMpYeW37/iKJsrNe1pvgUhLVvMpYOUh9eEsqtiXvIT9RzL6ehKmf7Ti43uluXL9UQyVzKlUZZL2htcDj/xadqFYFsN0W119qSQ9Drmp6/Em19GQKBgQDrjbd7ts/O7IDdWdaV51rRhGlBwSyAo25MTAfKuOeX/5c7gwyQWjDKIItcL/rcRurFTUAOZl1PEuWUuc93USDugbNi0fUb8XXSWs1q8wrxQL/Agx97DeDiuAgPSRF0+zgZ6mgcJrTGfqGgVKzmY1m4tW9cT19VLNSzWIdGnCAsEwKBgQCy6lgs5EhCw0aVmapzNS38bC4mpljVimxgbeejXGhzplAvjG0YIffIoTmjtyNkA8k82ZHQqVsmuEZztq0S8iRekPGOkVbAGv2XcTjEMe+DgqiZO/wzVbFNF1HKn6gxZVaK7Q9R7b8Rv+mZqW+CfKm02VifDSEbf/n+1DtspYJ37wKBgQCbZi86auzF8rlBTteGpc8Akn5uZubZJvjJVQ9+6mW/nVtEY7ySLy4o6zeFZhH16MNRzxkHZvkABdN4Pu1kJh23u9GAzEsMWEwGruj+OcFqT/ExLFBEem92ozqN+wKNTn9AeaididuRaFFw2OwIQlsaxHfnSmX2Z1Eb0LfOGYoQCQKBgDo49q7NLxLC12Jxmj1Zjfh5/97F/VyoajJLMblApiEUez2t9gaHb0oT5Vz4iQTQEpnBt6juo+IKz6pyRQpIUDuR8XnSpCdp4SJ6Tt3R3j6us00Cb0UJWuRadVx57lL8xlf5YyXnN2mASXWe5NHS3asjm6pOrHp1gBZEXH4zsixzAoGAb9/IBiKi9sGXQT3+KPzIJVsa78fsA0niGiJW/H54UfLlWVX4LzHpI8BfHDZKZVJETDpT4UE7O5B/3Flovk8zDEjZoPd4jiZyy45YcCyNAEBK/hZwMoUl7ENu3CW8wipcFvzpRhVCD41WPCOCo8OscVHPCsy0xP0xIWmFfGNVAZM=
+    force-rsa-encrypt: false  # 开发环境默认关闭RSA加密（方便调试）

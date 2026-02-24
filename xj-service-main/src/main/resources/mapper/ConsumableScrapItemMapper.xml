@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.xj_service.oa.mapper.ConsumableScrapItemMapper">
+
+    <sql id="Base_Column_List">
+        i.id, i.scrap_id, i.goods_id, i.goods_name,
+        <!-- 注意：这里不直接查询 item 表的 category_id 和 category_name -->
+        <!-- 因为它们是空的，我们从 goods 表获取 -->
+        i.quantity, i.unit_price, i.total_price, i.remark, i.created_at
+    </sql>
+
+    <!-- 三层关联查询：item -> goods -> category -->
+    <select id="selectByScrapId" resultType="org.xj_service.oa.entity.ConsumableScrapItem">
+        SELECT
+        i.id,
+        i.scrap_id,
+        i.goods_id,
+        i.goods_name,
+        <!-- 关键：从 goods 表获取分类ID -->
+        g.category_id as category_id,
+        <!-- 关键：从 category 表获取分类名称 -->
+        c.category_name as category_name,
+        i.quantity,
+        i.unit_price,
+        i.total_price,
+        i.remark,
+        i.created_at
+        FROM oa_consumable_scrap_item i
+        <!-- 第一步：关联商品表，获取商品信息 -->
+        LEFT JOIN oa_consumable_goods g ON i.goods_id = g.id
+        <!-- 第二步：通过商品表的 category_id 关联分类表 -->
+        LEFT JOIN oa_consumable_category c ON g.category_id = c.id
+        WHERE i.scrap_id = #{scrapId}
+        ORDER BY i.created_at DESC
+    </select>
+
+</mapper>

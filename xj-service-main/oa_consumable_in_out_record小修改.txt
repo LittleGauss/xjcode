@@ -1,0 +1,17 @@
+-- 1. 删除原有约束
+ALTER TABLE oa_consumable_in_out_record 
+DROP CONSTRAINT chk_operation_type,
+DROP CONSTRAINT chk_quantity_change;
+
+-- 2. 修改 operation_type 字段类型为 VARCHAR
+ALTER TABLE oa_consumable_in_out_record 
+MODIFY COLUMN operation_type VARCHAR(20) NOT NULL COMMENT '操作类型：IN-入库，OUT-出库，SCRAP-报废';
+
+-- 3. 重新添加检查约束（和原有规则完全一致）
+ALTER TABLE oa_consumable_in_out_record 
+ADD CONSTRAINT chk_operation_type CHECK (operation_type IN ('IN', 'OUT', 'SCRAP')),
+ADD CONSTRAINT chk_quantity_change CHECK (
+    (operation_type = 'IN' AND quantity_change > 0) OR
+    (operation_type = 'OUT' AND quantity_change < 0) OR
+    (operation_type = 'SCRAP' AND quantity_change < 0)
+);
